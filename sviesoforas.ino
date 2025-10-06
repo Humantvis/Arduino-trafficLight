@@ -6,16 +6,33 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 const int redPin = 13;
 const int yellowPin = 12;
 const int greenPin = 11;
-const byte interruptPin = 2;
+const int interruptPin = 2;
 
 volatile bool pressed = false;
 volatile bool tickFlag = false;
 volatile int countdownSeconds = 0;
 
-const int totalTime = 10;
-const int walkTime = 5;
+volatile bool buttonPressed = false;
+
+int totalTime = 10;
+int walkTime = totalTime / 2;
+
+int VERSION = 1;
+
+int pressCounter = 0;
 
 void setup() {
+  if (EEPROM.read(0) == VERSION) {
+    totalTime = EEPROM.read(1);
+    pressCounter = EEPROM.read(2);
+  } else {
+    EEPROM.update(0, VERSION);
+    EEPROM.update(1, totalTime);
+    EEPROM.update(2, pressCounter);
+  }
+
+  walkTime = totalTime / 2;
+
   lcd.init();
   lcd.backlight();
 
@@ -26,7 +43,6 @@ void setup() {
   pinMode(interruptPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(interruptPin), toggleLights, FALLING);
 
-  // coppied from https://www.instructables.com/Arduino-Timer-Interrupts
   cli();//stop interrupts
 
   //set timer1 interrupt at 1Hz
@@ -37,7 +53,7 @@ void setup() {
   OCR1A = 15624;// = (16*10^6) / (1*1024) - 1 (must be <65536)
   // turn on CTC mode
   TCCR1B |= (1 << WGM12);
-  // Set CS12 and CS10 bits for 1024 prescaler
+  // Set CS10 and CS12 bits for 1024 prescaler
   TCCR1B |= (1 << CS12) | (1 << CS10);  
   // enable timer compare interrupt
   TIMSK1 |= (1 << OCIE1A);
@@ -46,6 +62,18 @@ void setup() {
 }
 
 void loop() {
+  if (buttonPressed) {
+    buttonPressed = false;
+
+    if (!pressed && millis() > 2000) {
+      pressed = true;
+      countdownSeconds = totalTime;
+
+      pressCounter++;
+      EEPROM.update(2, pressCounter);
+    }
+  }
+
   if (!pressed) {
     digitalWrite(redPin, HIGH);
     digitalWrite(yellowPin, LOW);
@@ -53,24 +81,29 @@ void loop() {
 
     lcd.setCursor(0, 0);
     lcd.print("Wait");
+
+    lcd.setCursor(7, 0);
+    lcd.print(pressCounter);
   } else {
     if (tickFlag) {
       tickFlag = false;
 
       if (countdownSeconds > walkTime) {
         digitalWrite(redPin, HIGH);
-
-        if(countdownSeconds <= totalTime - walkTime / 2) {
+        if (countdownSeconds <= totalTime - walkTime / 2) {
           digitalWrite(yellowPin, HIGH);
         }
-
         digitalWrite(greenPin, LOW);
 
         lcd.setCursor(0, 0);
         lcd.print("Wait");
 
+        lcd.setCursor(7, 0);
+        lcd.print(pressCounter);
+
         lcd.setCursor(0, 1);
         lcd.print(countdownSeconds - walkTime);
+        lcd.print("          ");
       }
       else if (countdownSeconds > 0) {
         digitalWrite(redPin, LOW);
@@ -79,9 +112,9 @@ void loop() {
 
         lcd.setCursor(0, 0);
         lcd.print("Walk");
-
         lcd.setCursor(0, 1);
         lcd.print(countdownSeconds);
+        lcd.print("          ");
       }
       else {
         pressed = false;
@@ -92,10 +125,7 @@ void loop() {
 }
 
 void toggleLights() {
-  if (!pressed && millis() > 2000) {
-    pressed = true;
-    countdownSeconds = totalTime;
-  }
+  buttonPressed = true;
 }
 
 ISR(TIMER1_COMPA_vect) {
