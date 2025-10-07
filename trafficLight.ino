@@ -43,6 +43,7 @@ void setup() {
   pinMode(interruptPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(interruptPin), toggleLights, FALLING);
 
+  //https://www.instructables.com/Arduino-Timer-Interrupts
   cli();//stop interrupts
 
   //set timer1 interrupt at 1Hz
