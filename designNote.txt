@@ -1,0 +1,25 @@
+Design:
+Arduino Uno controls 3 LEDs (red/yellow/green) and an I2C LCD.
+Button press triggers a timed crossing cycle.
+EEPROM stores press counter across resets.
+
+
+Timing budget:
+
+Timer1 configured in CTC mode at 1 Hz (OCR1A = 15624).
+
+Total cycle = 10s (5s wait, 5s walk).
+
+
+Test/accuracy results:
+
+Verified red/yellow/green transitions match expected times.
+
+EEPROM press counter is correct after turning the Arduino off and turning it back on.
+
+
+Known issues:
+
+The button sometimes does nor register as pressed.
+
+Multiple presses during cycle do not restart countdown.
